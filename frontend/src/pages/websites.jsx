@@ -69,13 +69,39 @@ export default function Websites() {
     setError('');
     const toastId = toast.loading(`Scraping ${site.name}...`);
     try {
-      await apiPost(`/api/scrape/start/${site.name}`);
+      const response = await apiPost(`/api/scrape/start/${site.name}`);
       await load();
-      toast.success(`${site.name} scraping completed`, { id: toastId });
+
+      const scrapeData = response.data;
+      const { itemsScraped, itemsUpdated, status, errorMessage } = scrapeData;
+
+      if (status === 'success' || status === 'completed') {
+        const message = `
+          ✅ Scraped: ${itemsScraped} items
+          📝 Updated: ${itemsUpdated} items
+        `;
+        toast.success(message.trim(), {
+          id: toastId,
+          description: `${site.name} scraping completed successfully`
+        });
+      } else if (errorMessage) {
+        toast.error(`❌ ${errorMessage}`, { id: toastId });
+      } else {
+        toast.warning(`⚠️ Scraping completed with status: ${status}`, { id: toastId });
+      }
     } catch (e) {
       const msg = e.message || 'Failed to start scrape';
       setError(msg);
-      toast.error(msg, { id: toastId });
+
+      // Parse error details if available
+      if (e.response?.data?.error) {
+        toast.error(`❌ ${e.response.data.error}`, {
+          id: toastId,
+          description: e.response.data.details || msg
+        });
+      } else {
+        toast.error(msg, { id: toastId });
+      }
     } finally {
       setBusyId('');
     }
