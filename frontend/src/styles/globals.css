@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Vibrant light theme */
+  --background: 0 0% 100%;
+  --foreground: 222.2 47.4% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 47.4% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 47.4% 10%;
+  --primary: 256 84% 56%; /* violet */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 97%;
+  --secondary-foreground: 222.2 47.4% 12%;
+  --muted: 210 40% 97%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 190 95% 92%; /* teal tint */
+  --accent-foreground: 210 34% 20%;
+  --destructive: 0 80% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 31% 91%;
+  --input: 214 31% 91%;
+  --ring: 256 84% 56%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  /* Moody dark theme */
+  --background: 222 50% 6%;
+  --foreground: 213 31% 90%;
+  --card: 225 32% 10%;
+  --card-foreground: 213 31% 92%;
+  --popover: 225 32% 10%;
+  --popover-foreground: 213 31% 92%;
+  --primary: 258 90% 70%;
+  --primary-foreground: 240 33% 13%;
+  --secondary: 222 35% 16%;
+  --secondary-foreground: 213 31% 92%;
+  --muted: 222 35% 16%;
+  --muted-foreground: 217 20% 75%;
+  --accent: 190 80% 30%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 65% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 222 30% 20%;
+  --input: 222 30% 20%;
+  --ring: 258 90% 70%;
+}
+
+body {
+  @apply bg-background text-foreground;
+}
+
+.container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* App gradient background layer */
+.bg-app {
+  background-image:
+    radial-gradient(60rem 60rem at 10% -10%, hsl(var(--primary)/0.12), transparent 50%),
+    radial-gradient(40rem 40rem at 110% 10%, hsl(var(--accent)/0.15), transparent 40%);
+}
+
+/* Simple entrance animations */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up { animation: fade-in-up .4s ease-out both; }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+.animate-float { animation: float 3s ease-in-out infinite; }
+
+/* Card hover aesthetic */
+.card-hover {
+  @apply transition-transform duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:ring-1 hover:ring-primary/30;
+}

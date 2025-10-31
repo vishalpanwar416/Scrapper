@@ -1,29 +1,23 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors"));
-const dotenv_1 = __importDefault(require("dotenv"));
-const websites_1 = __importDefault(require("./api/routes/websites"));
-const products_1 = __importDefault(require("./api/routes/products"));
-const scrape_1 = __importDefault(require("./api/routes/scrape"));
-dotenv_1.default.config();
-const app = (0, express_1.default)();
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import websitesRouter from './api/routes/websites.js';
+import productsRouter from './api/routes/products.js';
+import scrapeRouter from './api/routes/scrape.js';
+dotenv.config();
+const app = express();
 const PORT = process.env.PORT || 5000;
 // Middleware
-app.use((0, cors_1.default)());
-app.use(express_1.default.json());
+app.use(cors());
+app.use(express.json());
 // Routes
-app.use('/api/websites', websites_1.default);
-app.use('/api/products', products_1.default);
-app.use('/api/scrape', scrape_1.default);
-// Health check
-app.get('/api/health', (req, res) => {
+app.use('/api/websites', websitesRouter);
+app.use('/api/products', productsRouter);
+app.use('/api/scrape', scrapeRouter);
+// Health
+app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date() });
 });
 app.listen(PORT, () => {
     console.log(`✓ Server running on http://localhost:${PORT}`);
 });
-//# sourceMappingURL=index.js.map

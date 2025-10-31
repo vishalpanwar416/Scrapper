@@ -1,11 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = require("express");
-const prisma_1 = __importDefault(require("../../database/prisma"));
-const router = (0, express_1.Router)();
+import { Router } from 'express';
+import prisma from '../../database/prisma.js';
+const router = Router();
 // Get all products with filters
 router.get('/', async (req, res) => {
     try {
@@ -14,13 +9,12 @@ router.get('/', async (req, res) => {
         const limitNum = parseInt(limit) || 20;
         const skip = (pageNum - 1) * limitNum;
         const where = {};
-        if (websiteId) {
+        if (websiteId)
             where.websiteId = websiteId;
-        }
         if (search) {
             where.OR = [
                 { title: { contains: search, mode: 'insensitive' } },
-                { description: { contains: search, mode: 'insensitive' } }
+                { description: { contains: search, mode: 'insensitive' } },
             ];
         }
         if (minPrice || maxPrice) {
@@ -30,56 +24,37 @@ router.get('/', async (req, res) => {
             if (maxPrice)
                 where.price.lte = parseFloat(maxPrice);
         }
-        let products = await prisma_1.default.product.findMany({
+        let products = await prisma.product.findMany({
             where,
-            include: {
-                colors: true,
-                sizes: true,
-                website: true
-            },
+            include: { colors: true, sizes: true, website: true },
             skip,
             take: limitNum,
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
         });
-        // Filter by color and size
         if (color || size) {
-            products = products.filter(product => {
-                const colorMatch = !color || product.colors.some(c => c.name.toLowerCase() === color.toLowerCase());
-                const sizeMatch = !size || product.sizes.some(s => s.size === size && s.available);
+            products = products.filter((p) => {
+                const colorMatch = !color || p.colors.some((c) => c.name.toLowerCase() === String(color).toLowerCase());
+                const sizeMatch = !size || p.sizes.some((s) => s.size === size && s.available);
                 return colorMatch && sizeMatch;
             });
         }
-        const total = await prisma_1.default.product.count({ where });
-        res.json({
-            data: products,
-            pagination: {
-                page: pageNum,
-                limit: limitNum,
-                total,
-                pages: Math.ceil(total / limitNum)
-            }
-        });
+        const total = await prisma.product.count({ where });
+        res.json({ data: products, pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) } });
     }
     catch (error) {
         console.error('Error fetching products:', error);
-        res.status(500).json({ error: 'Failed to fetch products' });
+        res.status(500).json({ error: 'Failed to fetch products', details: String(error) });
     }
 });
 // Get single product
 router.get('/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        const product = await prisma_1.default.product.findUnique({
-            where: { id },
-            include: {
-                colors: true,
-                sizes: true,
-                website: true
-            }
+        const product = await prisma.product.findUnique({
+            where: { id: req.params.id },
+            include: { colors: true, sizes: true, website: true },
         });
-        if (!product) {
+        if (!product)
             return res.status(404).json({ error: 'Product not found' });
-        }
         res.json(product);
     }
     catch (error) {
@@ -90,34 +65,22 @@ router.get('/:id', async (req, res) => {
 // Create product (manual entry)
 router.post('/', async (req, res) => {
     try {
-        const { title, url, websiteId, price, originalPrice, description, imageUrl, colors, sizes } = req.body;
-        if (!title || !url || !websiteId) {
+        const { title, url, websiteId, price, originalPrice, description, imageUrl, colors, sizes } = req.body || {};
+        if (!title || !url || !websiteId)
             return res.status(400).json({ error: 'Title, URL, and websiteId are required' });
-        }
-        const product = await prisma_1.default.product.create({
+        const product = await prisma.product.create({
             data: {
                 title,
                 url,
                 websiteId,
-                price: price ? parseFloat(price) : null,
-                originalPrice: originalPrice ? parseFloat(originalPrice) : null,
+                price: price !== undefined && price !== null ? parseFloat(String(price)) : null,
+                originalPrice: originalPrice !== undefined && originalPrice !== null ? parseFloat(String(originalPrice)) : null,
                 description,
                 imageUrl,
-                colors: colors ? {
-                    create: colors.map((c) => ({
-                        name: c.name,
-                        code: c.code || null
-                    }))
-                } : undefined,
-                sizes: sizes ? {
-                    create: sizes.map((s) => ({
-                        size: s.size,
-                        available: s.available !== false,
-                        stock: s.stock || 0
-                    }))
-                } : undefined
+                colors: colors ? { create: colors.map((c) => ({ name: c.name, code: c.code || null })) } : undefined,
+                sizes: sizes ? { create: sizes.map((s) => ({ size: s.size, available: s.available !== false, stock: s.stock || 0 })) } : undefined,
             },
-            include: { colors: true, sizes: true, website: true }
+            include: { colors: true, sizes: true, website: true },
         });
         res.status(201).json(product);
     }
@@ -129,18 +92,17 @@ router.post('/', async (req, res) => {
 // Update product
 router.put('/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        const { title, price, originalPrice, description, imageUrl } = req.body;
-        const product = await prisma_1.default.product.update({
-            where: { id },
+        const { title, price, originalPrice, description, imageUrl } = req.body || {};
+        const product = await prisma.product.update({
+            where: { id: req.params.id },
             data: {
-                ...(title && { title }),
-                ...(price !== undefined && { price: price ? parseFloat(price) : null }),
-                ...(originalPrice !== undefined && { originalPrice: originalPrice ? parseFloat(originalPrice) : null }),
-                ...(description && { description }),
-                ...(imageUrl && { imageUrl })
+                ...(title ? { title } : {}),
+                ...(price !== undefined ? { price: price ? parseFloat(String(price)) : null } : {}),
+                ...(originalPrice !== undefined ? { originalPrice: originalPrice ? parseFloat(String(originalPrice)) : null } : {}),
+                ...(description ? { description } : {}),
+                ...(imageUrl ? { imageUrl } : {}),
             },
-            include: { colors: true, sizes: true, website: true }
+            include: { colors: true, sizes: true, website: true },
         });
         res.json(product);
     }
@@ -152,10 +114,7 @@ router.put('/:id', async (req, res) => {
 // Delete product
 router.delete('/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        await prisma_1.default.product.delete({
-            where: { id }
-        });
+        await prisma.product.delete({ where: { id: req.params.id } });
         res.json({ message: 'Product deleted successfully' });
     }
     catch (error) {
@@ -166,10 +125,7 @@ router.delete('/:id', async (req, res) => {
 // Delete all products from a website
 router.delete('/website/:websiteId', async (req, res) => {
     try {
-        const { websiteId } = req.params;
-        const result = await prisma_1.default.product.deleteMany({
-            where: { websiteId }
-        });
+        const result = await prisma.product.deleteMany({ where: { websiteId: req.params.websiteId } });
         res.json({ message: `Deleted ${result.count} products` });
     }
     catch (error) {
@@ -177,5 +133,4 @@ router.delete('/website/:websiteId', async (req, res) => {
         res.status(500).json({ error: 'Failed to delete products' });
     }
 });
-exports.default = router;
-//# sourceMappingURL=products.js.map
+export default router;

@@ -1,44 +1,30 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = require("express");
-const prisma_1 = __importDefault(require("../../database/prisma"));
-const router = (0, express_1.Router)();
-// Get all websites
-router.get('/', async (req, res) => {
+import { Router } from 'express';
+import prisma from '../../database/prisma.js';
+const router = Router();
+// Get all websites with product count
+router.get('/', async (_req, res) => {
     try {
-        const websites = await prisma_1.default.website.findMany({
-            include: {
-                _count: {
-                    select: { products: true }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
+        const websites = await prisma.website.findMany({
+            include: { _count: { select: { products: true } } },
+            orderBy: { createdAt: 'desc' },
         });
-        const websitesWithCount = websites.map(site => ({
-            ...site,
-            productCount: site._count.products
-        }));
-        res.json(websitesWithCount);
+        const data = websites.map((w) => ({ ...w, productCount: w._count.products }));
+        res.json(data);
     }
     catch (error) {
         console.error('Error fetching websites:', error);
         res.status(500).json({ error: 'Failed to fetch websites' });
     }
 });
-// Get single website with products
+// Get single website
 router.get('/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        const website = await prisma_1.default.website.findUnique({
-            where: { id },
-            include: { products: true }
+        const website = await prisma.website.findUnique({
+            where: { id: req.params.id },
+            include: { products: true },
         });
-        if (!website) {
+        if (!website)
             return res.status(404).json({ error: 'Website not found' });
-        }
         res.json(website);
     }
     catch (error) {
@@ -49,19 +35,14 @@ router.get('/:id', async (req, res) => {
 // Create new website
 router.post('/', async (req, res) => {
     try {
-        const { name, url } = req.body;
-        if (!name || !url) {
+        const { name, url } = req.body || {};
+        if (!name || !url)
             return res.status(400).json({ error: 'Name and URL are required' });
-        }
-        // Check if website already exists
-        const existing = await prisma_1.default.website.findUnique({
-            where: { name }
-        });
-        if (existing) {
+        const existing = await prisma.website.findUnique({ where: { name: String(name).toLowerCase() } });
+        if (existing)
             return res.status(400).json({ error: 'Website already exists' });
-        }
-        const website = await prisma_1.default.website.create({
-            data: { name, url }
+        const website = await prisma.website.create({
+            data: { name: String(name).toLowerCase(), url, enabled: true },
         });
         res.status(201).json(website);
     }
@@ -73,15 +54,14 @@ router.post('/', async (req, res) => {
 // Update website
 router.put('/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        const { name, url, enabled } = req.body;
-        const website = await prisma_1.default.website.update({
-            where: { id },
+        const { name, url, enabled } = req.body || {};
+        const website = await prisma.website.update({
+            where: { id: req.params.id },
             data: {
-                ...(name && { name }),
-                ...(url && { url }),
-                ...(enabled !== undefined && { enabled })
-            }
+                ...(name ? { name: String(name).toLowerCase() } : {}),
+                ...(url ? { url } : {}),
+                ...(enabled !== undefined ? { enabled: !!enabled } : {}),
+            },
         });
         res.json(website);
     }
@@ -93,11 +73,7 @@ router.put('/:id', async (req, res) => {
 // Delete website
 router.delete('/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        // Delete will cascade to products, sizes, colors, and scrape logs
-        await prisma_1.default.website.delete({
-            where: { id }
-        });
+        await prisma.website.delete({ where: { id: req.params.id } });
         res.json({ message: 'Website deleted successfully' });
     }
     catch (error) {
@@ -105,5 +81,4 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({ error: 'Failed to delete website' });
     }
 });
-exports.default = router;
-//# sourceMappingURL=websites.js.map
+export default router;
