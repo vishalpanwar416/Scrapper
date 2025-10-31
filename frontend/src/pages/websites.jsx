@@ -8,6 +8,9 @@ export default function Websites() {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [busyId, setBusyId] = useState('');
+  const [editingId, setEditingId] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editUrl, setEditUrl] = useState('');
 
   async function load() {
     setLoading(true);
@@ -66,6 +69,35 @@ export default function Websites() {
     }
   }
 
+  function openEdit(site) {
+    setEditingId(site.id);
+    setEditName(site.name);
+    setEditUrl(site.url);
+    setError('');
+  }
+
+  function closeEdit() {
+    setEditingId('');
+    setEditName('');
+    setEditUrl('');
+  }
+
+  async function saveEdit(e) {
+    e.preventDefault();
+    if (!editName || !editUrl) return;
+    setBusyId(editingId);
+    setError('');
+    try {
+      await apiPut(`/api/websites/${editingId}`, { name: editName.toLowerCase(), url: editUrl });
+      await load();
+      closeEdit();
+    } catch (e) {
+      setError(e.message || 'Failed to update');
+    } finally {
+      setBusyId('');
+    }
+  }
+
   return (
     <main>
       <div className="flex items-center justify-between mb-4">
@@ -103,6 +135,7 @@ export default function Websites() {
                 <td className="px-3 py-2">{site.productCount ?? '-'}</td>
                 <td className="px-3 py-2">
                   <div className="flex gap-2">
+                    <button className="rounded-md border px-3 py-1 text-xs hover:bg-accent disabled:opacity-50" disabled={busyId===site.id} onClick={()=>openEdit(site)}>Edit</button>
                     <button className="rounded-md border px-3 py-1 text-xs hover:bg-accent disabled:opacity-50" disabled={busyId===site.id} onClick={()=>toggleEnabled(site)}>
                       {site.enabled ? 'Disable' : 'Enable'}
                     </button>
@@ -114,6 +147,54 @@ export default function Websites() {
           </tbody>
         </table>
       </div>
+
+      {editingId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-lg border shadow-lg max-w-md w-full p-6">
+            <h2 className="text-lg font-semibold mb-4">Edit Website</h2>
+            <form onSubmit={saveEdit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Name</label>
+                <input
+                  type="text"
+                  className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  placeholder="Website name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">URL</label>
+                <input
+                  type="url"
+                  className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+                  value={editUrl}
+                  onChange={e => setEditUrl(e.target.value)}
+                  placeholder="https://example.com"
+                />
+              </div>
+              {error && <div className="text-sm text-destructive">{error}</div>}
+              <div className="flex gap-2 justify-end pt-2">
+                <button
+                  type="button"
+                  className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
+                  onClick={closeEdit}
+                  disabled={busyId===editingId}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm hover:bg-primary/90 disabled:opacity-50"
+                  disabled={busyId===editingId || !editName || !editUrl}
+                >
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
