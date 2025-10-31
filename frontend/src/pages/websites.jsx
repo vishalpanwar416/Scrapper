@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiPost, apiPut } from '../lib/api';
+import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 
 export default function Websites() {
   const [items, setItems] = useState([]);
@@ -37,8 +39,11 @@ export default function Websites() {
       setName('');
       setUrl('');
       await load();
+      toast.success(`Website "${name}" added successfully`);
     } catch (e) {
-      setError(e.message || 'Failed to add');
+      const msg = e.message || 'Failed to add website';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -49,8 +54,11 @@ export default function Websites() {
     try {
       await apiPut(`/api/websites/${site.id}`, { enabled: !site.enabled });
       await load();
+      toast.success(`${site.name} ${!site.enabled ? 'enabled' : 'disabled'}`);
     } catch (e) {
-      setError(e.message || 'Failed to update');
+      const msg = e.message || 'Failed to update';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusyId('');
     }
@@ -59,11 +67,15 @@ export default function Websites() {
   async function scrape(site) {
     setBusyId(site.id);
     setError('');
+    const toastId = toast.loading(`Scraping ${site.name}...`);
     try {
       await apiPost(`/api/scrape/start/${site.name}`);
       await load();
+      toast.success(`${site.name} scraping completed`, { id: toastId });
     } catch (e) {
-      setError(e.message || 'Failed to start scrape');
+      const msg = e.message || 'Failed to start scrape';
+      setError(msg);
+      toast.error(msg, { id: toastId });
     } finally {
       setBusyId('');
     }
@@ -90,9 +102,12 @@ export default function Websites() {
     try {
       await apiPut(`/api/websites/${editingId}`, { name: editName.toLowerCase(), url: editUrl });
       await load();
+      toast.success(`Website updated successfully`);
       closeEdit();
     } catch (e) {
-      setError(e.message || 'Failed to update');
+      const msg = e.message || 'Failed to update';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusyId('');
     }
@@ -139,7 +154,10 @@ export default function Websites() {
                     <button className="rounded-md border px-3 py-1 text-xs hover:bg-accent disabled:opacity-50" disabled={busyId===site.id} onClick={()=>toggleEnabled(site)}>
                       {site.enabled ? 'Disable' : 'Enable'}
                     </button>
-                    <button className="rounded-md border px-3 py-1 text-xs hover:bg-accent disabled:opacity-50" disabled={busyId===site.id || !site.enabled} onClick={()=>scrape(site)}>Scrape now</button>
+                    <button className="rounded-md border px-3 py-1 text-xs hover:bg-accent disabled:opacity-50 flex items-center gap-1" disabled={busyId===site.id || !site.enabled} onClick={()=>scrape(site)}>
+                      {busyId===site.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                      {busyId===site.id ? 'Scraping' : 'Scrape now'}
+                    </button>
                   </div>
                 </td>
               </tr>
