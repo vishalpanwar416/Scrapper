@@ -9,7 +9,7 @@ const router = Router();
 
 const scrapers: Record<string, (websiteId: string) => Promise<{itemsScraped:number;itemsUpdated:number;status:string;error?:string;}>> = {
   snitch: scrapeSnitch,
-  rarerabit: scrapeRareRabit,
+  rarerabbit: scrapeRareRabit,
   offduety: scrapeOffDuety,
   zara: scrapeZara,
 };
