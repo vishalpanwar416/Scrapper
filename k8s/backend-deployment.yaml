@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scrapper-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scrapper-backend
+  template:
+    metadata:
+      labels:
+        app: scrapper-backend
+    spec:
+      containers:
+        - name: backend
+          image: <REGISTRY>/scrapper-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: scrapper-backend-config
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: scrapper-backend-data

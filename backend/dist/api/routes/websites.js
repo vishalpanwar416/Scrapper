@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import prisma from '../../database/prisma.js';
+import { AutoScraper } from '../../utils/autoScraper.js';
 const router = Router();
 // Get all websites with product count
 router.get('/', async (_req, res) => {
@@ -35,7 +36,7 @@ router.get('/:id', async (req, res) => {
 // Create new website
 router.post('/', async (req, res) => {
     try {
-        const { name, url } = req.body || {};
+        const { name, url, autoScrape } = req.body || {};
         if (!name || !url)
             return res.status(400).json({ error: 'Name and URL are required' });
         const existing = await prisma.website.findUnique({ where: { name: String(name).toLowerCase() } });
@@ -44,6 +45,11 @@ router.post('/', async (req, res) => {
         const website = await prisma.website.create({
             data: { name: String(name).toLowerCase(), url, enabled: true },
         });
+        // Auto-trigger scraping if requested
+        if (autoScrape === true || autoScrape === 'true') {
+            console.log(`[Website] Auto-triggering scrape for newly created website: ${website.name}`);
+            AutoScraper.triggerScrapeAsync(website.id);
+        }
         res.status(201).json(website);
     }
     catch (error) {

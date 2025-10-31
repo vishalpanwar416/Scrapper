@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import prisma from '../../database/prisma.js';
+import { AutoScraper } from '../../utils/autoScraper.js';
 
 const router = Router();
 
@@ -10,7 +11,7 @@ router.get('/', async (_req, res) => {
       include: { _count: { select: { products: true } } },
       orderBy: { createdAt: 'desc' },
     });
-    const data = websites.map((w) => ({ ...w, productCount: w._count.products }));
+    const data = websites.map((w: any) => ({ ...w, productCount: w._count.products }));
     res.json(data);
   } catch (error) {
     console.error('Error fetching websites:', error);
@@ -36,13 +37,21 @@ router.get('/:id', async (req, res) => {
 // Create new website
 router.post('/', async (req, res) => {
   try {
-    const { name, url } = req.body || {};
+    const { name, url, autoScrape } = req.body || {};
     if (!name || !url) return res.status(400).json({ error: 'Name and URL are required' });
     const existing = await prisma.website.findUnique({ where: { name: String(name).toLowerCase() } });
     if (existing) return res.status(400).json({ error: 'Website already exists' });
+
     const website = await prisma.website.create({
       data: { name: String(name).toLowerCase(), url, enabled: true },
     });
+
+    // Auto-trigger scraping if requested
+    if (autoScrape === true || autoScrape === 'true') {
+      console.log(`[Website] Auto-triggering scrape for newly created website: ${website.name}`);
+      AutoScraper.triggerScrapeAsync(website.id);
+    }
+
     res.status(201).json(website);
   } catch (error) {
     console.error('Error creating website:', error);

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: scrapper-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: scrapper-backend
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000

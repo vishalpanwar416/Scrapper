@@ -34,9 +34,9 @@ router.get('/', async (req, res) => {
     });
 
     if (color || size) {
-      products = products.filter((p) => {
-        const colorMatch = !color || p.colors.some((c) => c.name.toLowerCase() === String(color).toLowerCase());
-        const sizeMatch = !size || p.sizes.some((s) => s.size === size && s.available);
+      products = products.filter((p: any) => {
+        const colorMatch = !color || p.colors.some((c: any) => c.name.toLowerCase() === String(color).toLowerCase());
+        const sizeMatch = !size || p.sizes.some((s: any) => s.size === size && s.available);
         return colorMatch && sizeMatch;
       });
     }

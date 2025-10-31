@@ -68,7 +68,23 @@ export default function Websites() {
     setBusyId(site.id);
     setError('');
     const toastId = toast.loading(`Scraping ${site.name}...`);
+    let progressInterval = null;
+
     try {
+      // Start polling for progress updates
+      progressInterval = setInterval(async () => {
+        try {
+          const progress = await apiGet(`/api/scrape/progress/${site.id}`);
+          if (progress.stage !== 'idle') {
+            toast.loading(`${progress.message}\n⏳ Progress: ${progress.progress}%`, {
+              id: toastId
+            });
+          }
+        } catch (err) {
+          // Ignore progress fetch errors
+        }
+      }, 500);
+
       const response = await apiPost(`/api/scrape/start/${site.name}`);
       await load();
 
@@ -103,6 +119,9 @@ export default function Websites() {
         toast.error(msg, { id: toastId });
       }
     } finally {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
       setBusyId('');
     }
   }
