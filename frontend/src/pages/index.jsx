@@ -1,105 +1,214 @@
+import React, { useEffect, useState } from 'react';
+import { Layout } from '../components/Layout';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '../components/ui';
+import { Globe, Package, History, Zap, TrendingUp, Clock } from 'lucide-react';
 import Link from 'next/link';
-import { ArrowRight, ChevronDown } from 'lucide-react';
+import { apiGet } from '../lib/api';
 
-export default function Home() {
+export default function Dashboard() {
+  const [stats, setStats] = useState({
+    totalWebsites: 0,
+    totalProducts: 0,
+    totalLogs: 0,
+    activeWebsites: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [websites, products, logs] = await Promise.all([
+          apiGet('/api/websites'),
+          apiGet('/api/products?limit=1'),
+          apiGet('/api/scrape/logs?limit=1'),
+        ]);
+
+        setStats({
+          totalWebsites: websites.length,
+          activeWebsites: websites.filter((w) => w.enabled).length,
+          totalProducts: products.total || 0,
+          totalLogs: logs.total || 0,
+        });
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  const quickActions = [
+    {
+      icon: Globe,
+      label: 'Manage Websites',
+      description: 'Add, edit, or configure scraping targets',
+      href: '/websites',
+      color: 'from-blue-500 to-cyan-500',
+    },
+    {
+      icon: Package,
+      label: 'Browse Products',
+      description: 'View and filter scraped products',
+      href: '/products',
+      color: 'from-purple-500 to-pink-500',
+    },
+    {
+      icon: History,
+      label: 'View Logs',
+      description: 'Check scraping history and status',
+      href: '/logs',
+      color: 'from-orange-500 to-red-500',
+    },
+  ];
+
+  const statCards = [
+    {
+      icon: Globe,
+      label: 'Websites',
+      value: stats.totalWebsites,
+      subtext: `${stats.activeWebsites} active`,
+      color: 'from-blue-500 to-cyan-500',
+    },
+    {
+      icon: Package,
+      label: 'Products',
+      value: stats.totalProducts,
+      subtext: 'Total scraped',
+      color: 'from-purple-500 to-pink-500',
+    },
+    {
+      icon: History,
+      label: 'Scrape Logs',
+      value: stats.totalLogs,
+      subtext: 'Completed',
+      color: 'from-orange-500 to-red-500',
+    },
+  ];
+
   return (
-    <main>
-      {/* Hero */}
-      <section className="relative mb-10">
-        {/* Gradient blobs */}
-        <div className="blob blob--1 -top-32 -left-16" />
-        <div className="blob blob--2 -top-6 right-6" />
-        <div className="blob blob--3 bottom-4 left-1/3" />
+    <Layout>
+      <div className="p-4 md:p-8">
+        {/* Header */}
+        <div className="mb-8 animate-fade-in">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+            Welcome back!
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Manage your web scraping projects and monitor progress
+          </p>
+        </div>
 
-        {/* Glass panel hero */}
-        <div className="window-shell p-2 sm:p-3 relative">
-          <div className="glass-panel rounded-screen p-8 sm:p-12 relative overflow-hidden">
-            <div className="absolute inset-0 starfield pointer-events-none" />
-            {/* heading glow */}
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="h-80 w-80 sm:h-[26rem] sm:w-[26rem] rounded-full bg-[radial-gradient(circle_at_center,hsl(var(--primary)/.22),transparent_60%)] blur-3xl" />
-            </div>
-            <div className="flex flex-col items-center text-center gap-6 relative">
-              {/* pill nav */}
-              <nav className="flex flex-wrap items-center gap-2 rounded-full bg-card/70 border border-white/10 px-3 py-1.5 text-xs">
-                {[
-                  ['Home','/'],
-                  ['DeFi App','/shop'],
-                  ['Assets','/products'],
-                  ['Features','/products'],
-                  ['Pricing','#'],
-                  ['FAQ','#'],
-                  ['Protection','#']
-                ].map(([label,href]) => (
-                  <Link key={label} href={href} className="rounded-full px-3 py-1 hover:bg-accent transition">
-                    {label}
-                  </Link>
-                ))}
-              </nav>
-              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-semibold tracking-tight leading-tight">
-                One-click for Asset Defense
-              </h1>
-              <p className="max-w-2xl text-sm sm:text-base text-muted-foreground">
-                Dive into the art assets, where innovative scraping meets real-time insights.
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <Link href="/shop" className="rounded-full border border-white/15 bg-card/60 backdrop-blur px-5 py-2.5 text-sm font-medium hover:bg-accent transition inline-flex items-center gap-2">
-                  Open App <ArrowRight className="h-4 w-4" />
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {statCards.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <div key={stat.label} className="animate-fade-in" style={{ animationDelay: `${statCards.indexOf(stat) * 0.1}s` }}>
+                <Card variant="gradient" className="relative overflow-hidden">
+                  <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-r ${stat.color} opacity-10 rounded-full -mr-12 -mt-12`} />
+                  <CardContent>
+                    <div className="flex items-start justify-between relative">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                          {stat.label}
+                        </p>
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                          {stat.value}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500">
+                          {stat.subtext}
+                        </p>
+                      </div>
+                      <div className={`p-3 rounded-lg bg-gradient-to-r ${stat.color} text-white`}>
+                        <Icon size={24} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Quick Actions */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Quick Actions
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <Link key={action.href} href={action.href} className="block group animate-fade-in" style={{ animationDelay: `${quickActions.indexOf(action) * 0.1}s` }}>
+                    <Card hover className="h-full cursor-pointer">
+                      <CardContent>
+                        <div className="flex items-start gap-4">
+                          <div className={`p-3 rounded-lg bg-gradient-to-r ${action.color} text-white group-hover:scale-110 transition-transform`}>
+                            <Icon size={24} />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-blue-500 transition-colors">
+                              {action.label}
+                            </h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {action.description}
+                            </p>
+                          </div>
+                          <Zap size={16} className="text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+                        </div>
+                      </CardContent>
+                    </Card>
                 </Link>
-                <Link href="/websites" className="rounded-full bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:opacity-90 transition inline-flex items-center gap-2">
-                  Discover More <ArrowRight className="h-4 w-4" />
-                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Features */}
+        <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 dark:from-blue-500/5 dark:to-cyan-500/5 rounded-2xl border border-blue-200 dark:border-blue-800 p-8 animate-fade-in">
+          <div className="flex items-center gap-4 mb-4">
+            <Zap className="text-blue-500" size={24} />
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              Powerful Features
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700 dark:text-gray-300">
+            <div className="flex gap-3">
+              <TrendingUp className="text-blue-500 flex-shrink-0" size={20} />
+              <div>
+                <p className="font-medium text-gray-900 dark:text-white">Real-time Scraping</p>
+                <p className="text-gray-600 dark:text-gray-400">Monitor progress in real-time</p>
               </div>
             </div>
-            {/* scroll cue */}
-            <button
-              onClick={() => {
-                const el = document.getElementById('quick-links');
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              className="absolute left-4 bottom-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-card/60 backdrop-blur px-3 py-1.5 text-xs text-foreground/80 hover:bg-accent transition"
-            >
-              <ChevronDown className="h-4 w-4" />
-              Scroll down
-            </button>
+            <div className="flex gap-3">
+              <Clock className="text-blue-500 flex-shrink-0" size={20} />
+              <div>
+                <p className="font-medium text-gray-900 dark:text-white">Advanced Filtering</p>
+                <p className="text-gray-600 dark:text-gray-400">Filter by price, color, and more</p>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Brand strip */}
-      <section className="glass-panel mb-6 px-4 py-3 overflow-hidden">
-        <div className="flex items-center justify-between gap-6 text-xs text-muted-foreground">
-          {['Vercel','loom','Cash App','Loops','zapier','ramp','Raycast'].map((b)=> (
-            <span key={b} className="opacity-70 hover:opacity-100 transition whitespace-nowrap">{b}</span>
-          ))}
-        </div>
-      </section>
-
-      {/* Quick links */}
-      <section id="quick-links" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Link href="/websites" className="group rounded-lg border bg-card p-5 hover:bg-accent transition card-hover">
-          <div className="flex items-center justify-between">
-            <h2 className="font-medium">Websites</h2>
-            <span className="text-xs text-muted-foreground group-hover:text-foreground">Manage</span>
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">Add, enable/disable and run scrapes.</p>
-        </Link>
-        <Link href="/products" className="group rounded-lg border bg-card p-5 hover:bg-accent transition card-hover">
-          <div className="flex items-center justify-between">
-            <h2 className="font-medium">Products</h2>
-            <span className="text-xs text-muted-foreground group-hover:text-foreground">Browse</span>
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">Search and filter scraped products.</p>
-        </Link>
-        <Link href="/logs" className="group rounded-lg border bg-card p-5 hover:bg-accent transition card-hover">
-          <div className="flex items-center justify-between">
-            <h2 className="font-medium">Scrape Logs</h2>
-            <span className="text-xs text-muted-foreground group-hover:text-foreground">Inspect</span>
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">View scraping history and status.</p>
-        </Link>
-      </section>
-    </main>
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.5s ease-out forwards;
+          opacity: 0;
+        }
+      `}</style>
+    </Layout>
   );
 }
-

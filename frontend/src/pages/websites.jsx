@@ -1,263 +1,321 @@
-import { useEffect, useState } from 'react';
-import { apiGet, apiPost, apiPut } from '../lib/api';
+import React, { useEffect, useState } from 'react';
+import { Layout } from '@/components/Layout';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Input, Modal } from '@/components/ui';
+import { Header } from '@/components/Header';
+import { Loader, SkeletonCard } from '@/components/ui';
+import { Plus, Edit, Trash2, Play, Eye, EyeOff } from 'lucide-react';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
 
 export default function Websites() {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [name, setName] = useState('');
-  const [url, setUrl] = useState('');
-  const [busyId, setBusyId] = useState('');
-  const [editingId, setEditingId] = useState('');
-  const [editName, setEditName] = useState('');
-  const [editUrl, setEditUrl] = useState('');
+  const [websites, setWebsites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingWebsite, setEditingWebsite] = useState(null);
+  const [formData, setFormData] = useState({ name: '', url: '' });
+  const [scraping, setScraing] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
 
-  async function load() {
-    setLoading(true);
-    setError('');
+  useEffect(() => {
+    fetchWebsites();
+  }, []);
+
+  const fetchWebsites = async () => {
     try {
+      setLoading(true);
       const data = await apiGet('/api/websites');
-      setItems(data);
-    } catch (e) {
-      setError(e.message || 'Failed to load');
+      setWebsites(data);
+    } catch (error) {
+      toast.error('Failed to fetch websites');
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  useEffect(() => { load(); }, []);
-
-  async function addWebsite(e) {
+  const handleAddWebsite = async (e) => {
     e.preventDefault();
-    if (!name || !url) return;
-    setLoading(true);
-    setError('');
-    try {
-      await apiPost('/api/websites', { name: name.toLowerCase(), url });
-      setName('');
-      setUrl('');
-      await load();
-      toast.success(`Website "${name}" added successfully`);
-    } catch (e) {
-      const msg = e.message || 'Failed to add website';
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
+    if (!formData.name || !formData.url) {
+      toast.error('Please fill all fields');
+      return;
     }
-  }
-
-  async function toggleEnabled(site) {
-    setBusyId(site.id);
-    try {
-      await apiPut(`/api/websites/${site.id}`, { enabled: !site.enabled });
-      await load();
-      toast.success(`${site.name} ${!site.enabled ? 'enabled' : 'disabled'}`);
-    } catch (e) {
-      const msg = e.message || 'Failed to update';
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setBusyId('');
-    }
-  }
-
-  async function scrape(site) {
-    setBusyId(site.id);
-    setError('');
-    const toastId = toast.loading(`Scraping ${site.name}...`);
-    let progressInterval = null;
 
     try {
-      // Start polling for progress updates
-      progressInterval = setInterval(async () => {
-        try {
-          const progress = await apiGet(`/api/scrape/progress/${site.id}`);
-          if (progress.stage !== 'idle') {
-            toast.loading(`${progress.message}\n⏳ Progress: ${progress.progress}%`, {
-              id: toastId
-            });
-          }
-        } catch (err) {
-          // Ignore progress fetch errors
-        }
-      }, 500);
-
-      const response = await apiPost(`/api/scrape/start/${site.name}`);
-      await load();
-
-      const scrapeData = response.data;
-      const { itemsScraped, itemsUpdated, status, errorMessage } = scrapeData;
-
-      if (status === 'success' || status === 'completed') {
-        const message = `
-          ✅ Scraped: ${itemsScraped} items
-          📝 Updated: ${itemsUpdated} items
-        `;
-        toast.success(message.trim(), {
-          id: toastId,
-          description: `${site.name} scraping completed successfully`
-        });
-      } else if (errorMessage) {
-        toast.error(`❌ ${errorMessage}`, { id: toastId });
-      } else {
-        toast.warning(`⚠️ Scraping completed with status: ${status}`, { id: toastId });
-      }
-    } catch (e) {
-      const msg = e.message || 'Failed to start scrape';
-      setError(msg);
-
-      // Parse error details if available
-      if (e.response?.data?.error) {
-        toast.error(`❌ ${e.response.data.error}`, {
-          id: toastId,
-          description: e.response.data.details || msg
-        });
-      } else {
-        toast.error(msg, { id: toastId });
-      }
-    } finally {
-      if (progressInterval) {
-        clearInterval(progressInterval);
-      }
-      setBusyId('');
+      await apiPost('/api/websites', formData);
+      toast.success('Website added successfully');
+      setFormData({ name: '', url: '' });
+      setIsAddModalOpen(false);
+      fetchWebsites();
+    } catch (error) {
+      toast.error('Failed to add website');
     }
-  }
+  };
 
-  function openEdit(site) {
-    setEditingId(site.id);
-    setEditName(site.name);
-    setEditUrl(site.url);
-    setError('');
-  }
-
-  function closeEdit() {
-    setEditingId('');
-    setEditName('');
-    setEditUrl('');
-  }
-
-  async function saveEdit(e) {
+  const handleEditWebsite = async (e) => {
     e.preventDefault();
-    if (!editName || !editUrl) return;
-    setBusyId(editingId);
-    setError('');
-    try {
-      await apiPut(`/api/websites/${editingId}`, { name: editName.toLowerCase(), url: editUrl });
-      await load();
-      toast.success(`Website updated successfully`);
-      closeEdit();
-    } catch (e) {
-      const msg = e.message || 'Failed to update';
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setBusyId('');
+    if (!formData.name || !formData.url) {
+      toast.error('Please fill all fields');
+      return;
     }
-  }
+
+    try {
+      await apiPut(`/api/websites/${editingWebsite.id}`, formData);
+      toast.success('Website updated successfully');
+      setFormData({ name: '', url: '' });
+      setIsEditModalOpen(false);
+      setEditingWebsite(null);
+      fetchWebsites();
+    } catch (error) {
+      toast.error('Failed to update website');
+    }
+  };
+
+  const handleDeleteWebsite = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this website?')) return;
+
+    try {
+      await apiDelete(`/api/websites/${id}`);
+      toast.success('Website deleted successfully');
+      fetchWebsites();
+    } catch (error) {
+      toast.error('Failed to delete website');
+    }
+  };
+
+  const handleToggleWebsite = async (id, enabled) => {
+    try {
+      const website = websites.find((w) => w.id === id);
+      await apiPut(`/api/websites/${id}`, { ...website, enabled: !enabled });
+      toast.success(`Website ${!enabled ? 'enabled' : 'disabled'}`);
+      fetchWebsites();
+    } catch (error) {
+      toast.error('Failed to update website');
+    }
+  };
+
+  const handleScrape = async (name) => {
+    try {
+      setScraing((prev) => ({ ...prev, [name]: true }));
+      const toastId = toast.loading(`Scraping ${name}...`);
+      const response = await apiPost(`/api/scrape/start/${name}`, {});
+
+      const { itemsScraped, itemsUpdated, status } = response.data || response;
+      toast.success(`✅ Scraped ${itemsScraped} items, Updated ${itemsUpdated}`, { id: toastId });
+      fetchWebsites();
+    } catch (error) {
+      toast.error('Failed to start scraping');
+    } finally {
+      setScraing((prev) => ({ ...prev, [name]: false }));
+    }
+  };
+
+  const openEditModal = (website) => {
+    setEditingWebsite(website);
+    setFormData({ name: website.name, url: website.url });
+    setIsEditModalOpen(true);
+  };
+
+  const filteredWebsites = websites.filter(
+    (w) => w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           w.url.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <main>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold">Websites</h1>
-      </div>
+    <Layout>
+      <Header onSearch={setSearchQuery} placeholder="Search websites..." />
 
-      <form onSubmit={addWebsite} className="grid gap-2 rounded-lg border bg-card p-4 sm:grid-cols-[1fr_2fr_auto] mb-4">
-        <input className="h-9 rounded-md border bg-background px-3 text-sm" placeholder="name (scraper key)" value={name} onChange={e=>setName(e.target.value)} />
-        <input className="h-9 rounded-md border bg-background px-3 text-sm" placeholder="url" value={url} onChange={e=>setUrl(e.target.value)} />
-        <button className="h-9 rounded-md border px-3 text-sm hover:bg-accent disabled:opacity-50" disabled={loading || !name || !url} type="submit">Add</button>
-        {error ? <div className="sm:col-span-3 text-sm text-destructive">{error}</div> : null}
-      </form>
+      <div className="p-4 md:p-8">
+        {/* Header */}
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+              Websites Management
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Manage your scraping targets and monitor their status
+            </p>
+          </div>
+          <Button onClick={() => setIsAddModalOpen(true)} size="lg">
+            <Plus size={20} />
+            Add Website
+          </Button>
+        </div>
 
-      {loading ? <div className="text-sm text-muted-foreground mb-2">Loading...</div> : null}
+        {/* Add Website Modal */}
+        <Modal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          title="Add New Website"
+          size="lg"
+        >
+          <form onSubmit={handleAddWebsite} className="space-y-4">
+            <Input
+              label="Website Name"
+              placeholder="e.g., Fashion Store"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+            <Input
+              label="Website URL"
+              placeholder="e.g., https://example.com"
+              type="url"
+              value={formData.url}
+              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+            />
+            <div className="flex gap-3 justify-end pt-4">
+              <Button variant="secondary" onClick={() => setIsAddModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                Add Website
+              </Button>
+            </div>
+          </form>
+        </Modal>
 
-      <div className="rounded-lg border overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="text-left px-3 py-2 font-medium">Name</th>
-              <th className="text-left px-3 py-2 font-medium">URL</th>
-              <th className="text-left px-3 py-2 font-medium">Enabled</th>
-              <th className="text-left px-3 py-2 font-medium">Products</th>
-              <th className="text-left px-3 py-2 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(site => (
-              <tr key={site.id} className="border-t">
-                <td className="px-3 py-2 font-medium">{site.name}</td>
-                <td className="px-3 py-2"><a className="text-primary hover:underline" href={site.url} target="_blank" rel="noreferrer">{site.url}</a></td>
-                <td className="px-3 py-2">
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs border ${site.enabled ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800' : 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800'}`}>{site.enabled ? 'Enabled' : 'Disabled'}</span>
-                </td>
-                <td className="px-3 py-2">{site.productCount ?? '-'}</td>
-                <td className="px-3 py-2">
-                  <div className="flex gap-2">
-                    <button className="rounded-md border px-3 py-1 text-xs hover:bg-accent disabled:opacity-50" disabled={busyId===site.id} onClick={()=>openEdit(site)}>Edit</button>
-                    <button className="rounded-md border px-3 py-1 text-xs hover:bg-accent disabled:opacity-50" disabled={busyId===site.id} onClick={()=>toggleEnabled(site)}>
-                      {site.enabled ? 'Disable' : 'Enable'}
-                    </button>
-                    <button className="rounded-md border px-3 py-1 text-xs hover:bg-accent disabled:opacity-50 flex items-center gap-1" disabled={busyId===site.id || !site.enabled} onClick={()=>scrape(site)}>
-                      {busyId===site.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                      {busyId===site.id ? 'Scraping' : 'Scrape now'}
+        {/* Edit Website Modal */}
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingWebsite(null);
+            setFormData({ name: '', url: '' });
+          }}
+          title="Edit Website"
+          size="lg"
+        >
+          <form onSubmit={handleEditWebsite} className="space-y-4">
+            <Input
+              label="Website Name"
+              placeholder="e.g., Fashion Store"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+            <Input
+              label="Website URL"
+              placeholder="e.g., https://example.com"
+              type="url"
+              value={formData.url}
+              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+            />
+            <div className="flex gap-3 justify-end pt-4">
+              <Button variant="secondary" onClick={() => setIsEditModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Websites Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        ) : filteredWebsites.length === 0 ? (
+          <Card className="text-center py-12">
+            <p className="text-gray-600 dark:text-gray-400 text-lg">
+              {searchQuery ? 'No websites found matching your search' : 'No websites yet. Add one to get started!'}
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredWebsites.map((website, index) => (
+              <Card
+                key={website.id}
+                variant="elevated"
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle>{website.name}</CardTitle>
+                      <CardDescription className="text-xs mt-1">
+                        {website.productCount} products
+                      </CardDescription>
+                    </div>
+                    <button
+                      onClick={() => handleToggleWebsite(website.id, website.enabled)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        website.enabled
+                          ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                      }`}
+                    >
+                      {website.enabled ? (
+                        <Eye size={18} />
+                      ) : (
+                        <EyeOff size={18} />
+                      )}
                     </button>
                   </div>
-                </td>
-              </tr>
+                </CardHeader>
+
+                <CardContent>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 break-all">
+                    {website.url}
+                  </p>
+                  {website.lastScrapedAt && (
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                      Last scraped: {new Date(website.lastScrapedAt).toLocaleDateString()}
+                    </p>
+                  )}
+                </CardContent>
+
+                <CardFooter>
+                  <Button
+                    size="sm"
+                    variant="success"
+                    onClick={() => handleScrape(website.name)}
+                    loading={scraping[website.name]}
+                    disabled={!website.enabled}
+                    className="flex-1"
+                  >
+                    <Play size={16} />
+                    Scrape
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => openEditModal(website)}
+                  >
+                    <Edit size={16} />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => handleDeleteWebsite(website.id)}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </CardFooter>
+              </Card>
             ))}
-          </tbody>
-        </table>
+          </div>
+        )}
       </div>
 
-      {editingId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-lg border shadow-lg max-w-md w-full p-6">
-            <h2 className="text-lg font-semibold mb-4">Edit Website</h2>
-            <form onSubmit={saveEdit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Name</label>
-                <input
-                  type="text"
-                  className="w-full h-9 rounded-md border bg-background px-3 text-sm"
-                  value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  placeholder="Website name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">URL</label>
-                <input
-                  type="url"
-                  className="w-full h-9 rounded-md border bg-background px-3 text-sm"
-                  value={editUrl}
-                  onChange={e => setEditUrl(e.target.value)}
-                  placeholder="https://example.com"
-                />
-              </div>
-              {error && <div className="text-sm text-destructive">{error}</div>}
-              <div className="flex gap-2 justify-end pt-2">
-                <button
-                  type="button"
-                  className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
-                  onClick={closeEdit}
-                  disabled={busyId===editingId}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm hover:bg-primary/90 disabled:opacity-50"
-                  disabled={busyId===editingId || !editName || !editUrl}
-                >
-                  Save
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </main>
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.5s ease-out forwards;
+          opacity: 0;
+        }
+      `}</style>
+    </Layout>
   );
 }
