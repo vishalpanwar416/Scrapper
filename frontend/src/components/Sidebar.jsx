@@ -29,14 +29,15 @@ export const Sidebar = () => {
       </button>
 
       {/* Sidebar - Fixed on mobile, relative on desktop */}
-      <aside className={`w-64 h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white p-6 flex flex-col shrink-0 ${
-        // Desktop: static/relative positioning
-        'hidden md:flex'
+      <aside className={`w-64 h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white p-6 flex flex-col shrink-0 transform transition-transform duration-300 ${
+        // Desktop: relative positioning with flex display
+        'relative hidden md:flex md:translate-x-0 md:z-auto'
       } ${
         // Mobile: fixed positioning with toggle
-        'fixed md:relative left-0 top-0 transform transition-transform duration-300 z-40 md:z-auto md:translate-x-0'
+        'fixed md:relative left-0 top-0 z-40 md:left-auto md:top-auto'
       } ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
+        // Mobile toggle state
+        isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
         {/* Logo */}
         <div className="mb-8">
