@@ -65,7 +65,7 @@ export class AutoScraper {
       initializeProgress(websiteId);
 
       // Get the appropriate scraper
-      const { type, scraper } = scraperFactory.getScraper(website.name);
+      const { type, scraper } = await scraperFactory.getScraper(website.name);
 
       // Execute scraper based on type
       let result;

@@ -152,7 +152,7 @@ router.post('/start/:websiteName', asyncHandler(async (req: Request, res: Respon
 
   try {
     // Get scraper from factory (specific or generic)
-    const { type, scraper } = scraperFactory.getScraper(websiteName);
+    const { type, scraper } = await scraperFactory.getScraper(websiteName);
     let result;
 
     console.log(`[Scrape] Using ${type} scraper for ${websiteName}`);
@@ -217,7 +217,7 @@ router.post('/start-all', asyncHandler(async (req: Request, res: Response) => {
     websites.map(async (website) => {
       try {
         initializeProgress(website.id);
-        const { type, scraper } = scraperFactory.getScraper(website.name);
+        const { type, scraper } = await scraperFactory.getScraper(website.name);
         let result;
 
         if (type === 'specific') {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import prisma from '../../database/prisma.js';
 import { AutoScraper } from '../../utils/autoScraper.js';
+import { scraperGenerator } from '../../utils/scraperGenerator.js';
 const router = Router();
 // Get all websites with product count
 router.get('/', async (_req, res) => {
@@ -61,6 +62,17 @@ router.post('/', async (req, res) => {
         const website = await prisma.website.create({
             data: { name: nameLower, url, enabled: true },
         });
+        // Generate a scraper file for this new website
+        try {
+            const scraperInfo = await scraperGenerator.generateScraperFile(nameLower, url);
+            console.log(`[Website] Generated scraper file: ${scraperInfo.filePath}`);
+            console.log(`[Website] Function name: ${scraperInfo.functionName}`);
+            console.log(`[Website] After modifying the scraper file and rebuilding, scraping will use it automatically`);
+        }
+        catch (error) {
+            console.error(`[Website] Failed to generate scraper file:`, error);
+            // Don't fail the website creation if scraper generation fails
+        }
         // Auto-trigger scraping if requested
         if (autoScrape === true || autoScrape === 'true') {
             console.log(`[Website] Auto-triggering scrape for newly created website: ${website.name}`);
