@@ -78,14 +78,129 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete website
+// Delete website (cascades to delete related products, colors, sizes, and scrape logs)
 router.delete('/:id', async (req, res) => {
   try {
-    await prisma.website.delete({ where: { id: req.params.id } });
-    res.json({ message: 'Website deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting website:', error);
-    res.status(500).json({ error: 'Failed to delete website' });
+    const websiteId = req.params.id;
+
+    console.log(`\n${'═'.repeat(60)}`);
+    console.log(`🗑️  DELETING WEBSITE: ${websiteId}`);
+    console.log('═'.repeat(60));
+
+    // Find the website first to get information for logging
+    const website = await prisma.website.findUnique({
+      where: { id: websiteId },
+      include: {
+        products: { include: { colors: true, sizes: true } },
+        scrapeLog: true,
+      },
+    });
+
+    if (!website) {
+      console.error('❌ Website not found:', websiteId);
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Website not found',
+        },
+      });
+    }
+
+    const productCount = website.products.length;
+    const colorCount = website.products.reduce((sum, p) => sum + p.colors.length, 0);
+    const sizeCount = website.products.reduce((sum, p) => sum + p.sizes.length, 0);
+    const logCount = website.scrapeLog.length;
+
+    console.log(`📋 Items to be deleted:`);
+    console.log(`   - Website: ${website.name}`);
+    console.log(`   - Products: ${productCount}`);
+    console.log(`   - Colors: ${colorCount}`);
+    console.log(`   - Sizes: ${sizeCount}`);
+    console.log(`   - Scrape Logs: ${logCount}`);
+
+    // Use a transaction to ensure atomic deletion (all or nothing)
+    const result = await prisma.$transaction(async (tx) => {
+      // Step 1: Delete colors and sizes (products' relations)
+      console.log(`\n📍 Step 1: Deleting colors and sizes...`);
+      const colorsDeleted = await tx.color.deleteMany({
+        where: { product: { websiteId } },
+      });
+      const sizesDeleted = await tx.size.deleteMany({
+        where: { product: { websiteId } },
+      });
+      console.log(`   ✓ Deleted ${colorsDeleted.count} colors`);
+      console.log(`   ✓ Deleted ${sizesDeleted.count} sizes`);
+
+      // Step 2: Delete products
+      console.log(`\n📍 Step 2: Deleting products...`);
+      const productsDeleted = await tx.product.deleteMany({
+        where: { websiteId },
+      });
+      console.log(`   ✓ Deleted ${productsDeleted.count} products`);
+
+      // Step 3: Delete scrape logs
+      console.log(`\n📍 Step 3: Deleting scrape logs...`);
+      const logsDeleted = await tx.scrapeLog.deleteMany({
+        where: { websiteId },
+      });
+      console.log(`   ✓ Deleted ${logsDeleted.count} scrape logs`);
+
+      // Step 4: Delete website
+      console.log(`\n📍 Step 4: Deleting website...`);
+      const deletedWebsite = await tx.website.delete({
+        where: { id: websiteId },
+      });
+      console.log(`   ✓ Deleted website: ${deletedWebsite.name}`);
+
+      return {
+        website: deletedWebsite,
+        statistics: {
+          colorsDeleted: colorsDeleted.count,
+          sizesDeleted: sizesDeleted.count,
+          productsDeleted: productsDeleted.count,
+          logsDeleted: logsDeleted.count,
+        },
+      };
+    });
+
+    console.log(`\n✅ SUCCESS: Website and all related data deleted`);
+    console.log(`${'═'.repeat(60)}\n`);
+
+    res.json({
+      success: true,
+      message: 'Website and all related data deleted successfully',
+      deleted: {
+        website: result.website.name,
+        statistics: result.statistics,
+      },
+    });
+  } catch (error: any) {
+    console.error(`\n❌ ERROR deleting website: ${req.params.id}`);
+    console.error('Error details:', error.message);
+    console.error('Stack:', error.stack);
+
+    // Handle specific errors
+    if (error.code === 'P2025') {
+      // Prisma unique constraint violation
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'CONFLICT',
+          message: 'Cannot delete website due to constraint violation',
+          details: error.message,
+        },
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DELETE_ERROR',
+        message: 'Failed to delete website',
+        details: error.message,
+      },
+    });
   }
 });
 
