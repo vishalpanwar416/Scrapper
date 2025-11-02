@@ -64,6 +64,6 @@ model ScrapeLog {
   status       String
   errorMessage String?
 
-  website   Website @relation(fields: [websiteId], references: [id])
-  websiteId String
+  website   Website? @relation(fields: [websiteId], references: [id], onDelete: SetNull)
+  websiteId String?
 }

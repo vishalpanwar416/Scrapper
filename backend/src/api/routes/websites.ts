@@ -78,7 +78,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete website (cascades to delete related products, colors, sizes, and scrape logs)
+// Delete website (cascades to delete related products and their data, but preserves scrape logs for audit trail)
 router.delete('/:id', async (req, res) => {
   try {
     const websiteId = req.params.id;
@@ -117,6 +117,7 @@ router.delete('/:id', async (req, res) => {
     console.log(`   - Products: ${productCount}`);
     console.log(`   - Colors: ${colorCount}`);
     console.log(`   - Sizes: ${sizeCount}`);
+    console.log(`\n📋 Items to be preserved (audit trail):`);
     console.log(`   - Scrape Logs: ${logCount}`);
 
     // Use a transaction to ensure atomic deletion (all or nothing)
@@ -139,37 +140,31 @@ router.delete('/:id', async (req, res) => {
       });
       console.log(`   ✓ Deleted ${productsDeleted.count} products`);
 
-      // Step 3: Delete scrape logs
-      console.log(`\n📍 Step 3: Deleting scrape logs...`);
-      const logsDeleted = await tx.scrapeLog.deleteMany({
-        where: { websiteId },
-      });
-      console.log(`   ✓ Deleted ${logsDeleted.count} scrape logs`);
-
-      // Step 4: Delete website
-      console.log(`\n📍 Step 4: Deleting website...`);
+      // Step 3: Delete website (scrape logs are preserved)
+      console.log(`\n📍 Step 3: Deleting website...`);
       const deletedWebsite = await tx.website.delete({
         where: { id: websiteId },
       });
       console.log(`   ✓ Deleted website: ${deletedWebsite.name}`);
+      console.log(`   ℹ️  Preserved ${logCount} scrape logs for audit trail`);
 
       return {
         website: deletedWebsite,
         statistics: {
-          colorsDeleted: colorsDeleted.count,
-          sizesDeleted: sizesDeleted.count,
-          productsDeleted: productsDeleted.count,
-          logsDeleted: logsDeleted.count,
+          colorsDeleted: colorCount,
+          sizesDeleted: sizeCount,
+          productsDeleted: productCount,
+          logsPreserved: logCount,
         },
       };
     });
 
-    console.log(`\n✅ SUCCESS: Website and all related data deleted`);
+    console.log(`\n✅ SUCCESS: Website and products deleted successfully (scrape logs preserved for audit trail)`);
     console.log(`${'═'.repeat(60)}\n`);
 
     res.json({
       success: true,
-      message: 'Website and all related data deleted successfully',
+      message: 'Website and products deleted successfully (scrape logs preserved for audit trail)',
       deleted: {
         website: result.website.name,
         statistics: result.statistics,
