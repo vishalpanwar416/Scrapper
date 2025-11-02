@@ -7,25 +7,47 @@ const router = Router();
 router.get('/', async (req, res) => {
   try {
     const { websiteId, search, color, size, minPrice, maxPrice, page = '1', limit = '20' } = req.query as Record<string, string>;
-    const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(limit) || 20;
+
+    // Validate pagination parameters
+    let pageNum = parseInt(page);
+    let limitNum = parseInt(limit);
+
+    if (isNaN(pageNum) || pageNum < 1) pageNum = 1;
+    if (isNaN(limitNum) || limitNum < 1) limitNum = 20;
+    if (limitNum > 100) limitNum = 100; // Cap max limit at 100
+
     const skip = (pageNum - 1) * limitNum;
 
+    // Build where clause for database filtering
     const where: any = {};
+
     if (websiteId) where.websiteId = websiteId;
+
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
       ];
     }
+
     if (minPrice || maxPrice) {
       where.price = {} as any;
-      if (minPrice) where.price.gte = parseFloat(minPrice);
-      if (maxPrice) where.price.lte = parseFloat(maxPrice);
+      if (minPrice) {
+        const min = parseFloat(minPrice);
+        if (!isNaN(min)) where.price.gte = min;
+      }
+      if (maxPrice) {
+        const max = parseFloat(maxPrice);
+        if (!isNaN(max)) where.price.lte = max;
+      }
     }
 
-    let products = await prisma.product.findMany({
+    // Note: Color and Size filtering must happen after pagination because
+    // these are relationships and Prisma doesn't support filtering by nested relations
+    // with pagination in a single query. For production, consider using raw SQL or
+    // denormalizing the data structure.
+
+    const products = await prisma.product.findMany({
       where,
       include: { colors: true, sizes: true, website: true },
       skip,
@@ -33,8 +55,10 @@ router.get('/', async (req, res) => {
       orderBy: { createdAt: 'desc' },
     });
 
+    // Apply color and size filtering after fetching
+    let filteredProducts = products;
     if (color || size) {
-      products = products.filter((p: any) => {
+      filteredProducts = products.filter((p: any) => {
         const colorMatch = !color || p.colors.some((c: any) => c.name.toLowerCase() === String(color).toLowerCase());
         const sizeMatch = !size || p.sizes.some((s: any) => s.size === size && s.available);
         return colorMatch && sizeMatch;
@@ -42,7 +66,16 @@ router.get('/', async (req, res) => {
     }
 
     const total = await prisma.product.count({ where });
-    res.json({ data: products, pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) } });
+
+    res.json({
+      data: filteredProducts,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum),
+      },
+    });
   } catch (error) {
     console.error('Error fetching products:', error);
     res.status(500).json({ error: 'Failed to fetch products', details: String(error) });

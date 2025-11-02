@@ -48,13 +48,40 @@ export const logger = (req, res, next) => {
                 res.statusCode >= 300 ? '\x1b[36m' : // Cyan
                     '\x1b[32m'; // Green
         const resetColor = '\x1b[0m';
-        const logMessage = `${statusColor}[${res.statusCode}]${resetColor} ${req.method} ${req.originalUrl} - ${duration}ms`;
+        // Determine status emoji and description
+        const statusEmoji = res.statusCode >= 500 ? '🔥' :
+            res.statusCode >= 400 ? '⚠️ ' :
+                res.statusCode >= 300 ? '→ ' :
+                    '✅';
+        const statusDescription = res.statusCode === 200 ? 'OK' :
+            res.statusCode === 201 ? 'Created' :
+                res.statusCode === 204 ? 'No Content' :
+                    res.statusCode === 400 ? 'Bad Request' :
+                        res.statusCode === 401 ? 'Unauthorized' :
+                            res.statusCode === 403 ? 'Forbidden' :
+                                res.statusCode === 404 ? 'Not Found' :
+                                    res.statusCode === 409 ? 'Conflict' :
+                                        res.statusCode === 422 ? 'Unprocessable Entity' :
+                                            res.statusCode === 429 ? 'Rate Limited' :
+                                                res.statusCode === 500 ? 'Internal Server Error' :
+                                                    res.statusCode === 503 ? 'Service Unavailable' :
+                                                        'Unknown';
+        const logMessage = `${statusEmoji} ${statusColor}[${res.statusCode}]${resetColor} ${req.method.padEnd(6)} ${req.originalUrl.substring(0, 50).padEnd(50)} - ${duration.toString().padEnd(5)}ms ${statusDescription}`;
         console.log(logMessage);
         // Log detailed info in development
         if (process.env.NODE_ENV === 'development') {
             console.log(`  IP: ${logContext.ip}, User-Agent: ${logContext.userAgent?.substring(0, 50)}...`);
+            // Log request details for POST/PUT/PATCH
             if (logContext.requestBody && Object.keys(logContext.requestBody).length > 0) {
-                console.log(`  Request:`, logContext.requestBody);
+                console.log(`  📤 Request Body:`, logContext.requestBody);
+            }
+            // Log errors (4xx and 5xx status codes)
+            if (res.statusCode >= 400) {
+                console.log(`  ❌ Error Response:`, logContext.responseBody);
+            }
+            // Log slow requests
+            if (duration > 1000) {
+                console.log(`  ⏱️  SLOW REQUEST: Took ${duration}ms (threshold: 1000ms)`);
             }
         }
     });

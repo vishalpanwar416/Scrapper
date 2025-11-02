@@ -11,14 +11,20 @@ export class AutoScraper {
      * Runs asynchronously without blocking the API response
      */
     static async triggerScrapeAsync(websiteId) {
-        // Run asynchronously in the background
-        setImmediate(async () => {
-            try {
-                await this.scrapeWebsite(websiteId);
-            }
-            catch (error) {
-                console.error(`[AutoScraper] Error during async scrape for website ${websiteId}:`, error);
-            }
+        // Run asynchronously in the background with proper error handling
+        return new Promise((resolve) => {
+            setImmediate(async () => {
+                try {
+                    await this.scrapeWebsite(websiteId);
+                }
+                catch (error) {
+                    console.error(`[AutoScraper] Error during async scrape for website ${websiteId}:`, error);
+                    // Log error but don't throw to prevent uncaught promise rejections
+                }
+                finally {
+                    resolve();
+                }
+            });
         });
     }
     /**

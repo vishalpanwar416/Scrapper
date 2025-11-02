@@ -115,13 +115,25 @@ export const createRateLimiter = (config: RateLimitConfig) => {
     const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
     const key = `rate-limit:${clientIp}`;
 
-    // Check if we should skip this request
-    const skipCheck = (skipSuccessfulRequests && res.statusCode < 400) ||
-                      (skipFailedRequests && res.statusCode >= 400);
+    // Store original send method to intercept response
+    const originalSend = res.json.bind(res);
 
-    if (skipCheck) {
-      return next();
-    }
+    // Override send to handle skip logic after response status is known
+    res.json = function(data: any) {
+      // Check if we should skip counting this request based on response status
+      const skipCheck = (skipSuccessfulRequests && res.statusCode < 400) ||
+                        (skipFailedRequests && res.statusCode >= 400);
+
+      if (!skipCheck) {
+        // Only decrement if we're skipping (we increment before, now we undo)
+        const record = store.get(key);
+        if (record) {
+          record.count = Math.max(0, record.count - 1);
+        }
+      }
+
+      return originalSend(data);
+    };
 
     // Increment request count
     const { count, remaining } = store.increment(key, windowMs);
@@ -138,7 +150,7 @@ export const createRateLimiter = (config: RateLimitConfig) => {
         error: {
           code: 'RATE_LIMIT_EXCEEDED',
           message,
-          retryAfter: Math.ceil(remaining / 1000),
+          retryAfter: Math.ceil(Math.max(0, remaining) / 1000),
         },
       });
     }

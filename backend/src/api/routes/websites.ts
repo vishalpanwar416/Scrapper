@@ -38,12 +38,34 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { name, url, autoScrape } = req.body || {};
-    if (!name || !url) return res.status(400).json({ error: 'Name and URL are required' });
-    const existing = await prisma.website.findUnique({ where: { name: String(name).toLowerCase() } });
-    if (existing) return res.status(400).json({ error: 'Website already exists' });
+
+    // Validate required fields
+    if (!name || !url) {
+      return res.status(400).json({ error: 'Name and URL are required' });
+    }
+
+    // Validate name format
+    if (typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Name must be a non-empty string' });
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      return res.status(400).json({ error: 'Invalid URL format. Must be a valid HTTP(S) URL' });
+    }
+
+    const nameLower = String(name).trim().toLowerCase();
+
+    // Check if website already exists
+    const existing = await prisma.website.findUnique({ where: { name: nameLower } });
+    if (existing) {
+      return res.status(409).json({ error: 'A website with this name already exists' });
+    }
 
     const website = await prisma.website.create({
-      data: { name: String(name).toLowerCase(), url, enabled: true },
+      data: { name: nameLower, url, enabled: true },
     });
 
     // Auto-trigger scraping if requested
@@ -63,17 +85,56 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { name, url, enabled } = req.body || {};
+    const websiteId = req.params.id;
+
+    // Validate ID
+    if (!websiteId || typeof websiteId !== 'string') {
+      return res.status(400).json({ error: 'Valid website ID is required' });
+    }
+
+    // Build update data with validation
+    const updateData: any = {};
+
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ error: 'Name must be a non-empty string' });
+      }
+      updateData.name = String(name).trim().toLowerCase();
+    }
+
+    if (url !== undefined) {
+      if (typeof url !== 'string' || url.trim().length === 0) {
+        return res.status(400).json({ error: 'URL must be a non-empty string' });
+      }
+      try {
+        new URL(url);
+        updateData.url = url;
+      } catch {
+        return res.status(400).json({ error: 'Invalid URL format. Must be a valid HTTP(S) URL' });
+      }
+    }
+
+    if (enabled !== undefined) {
+      updateData.enabled = !!enabled;
+    }
+
     const website = await prisma.website.update({
-      where: { id: req.params.id },
-      data: {
-        ...(name ? { name: String(name).toLowerCase() } : {}),
-        ...(url ? { url } : {}),
-        ...(enabled !== undefined ? { enabled: !!enabled } : {}),
-      },
+      where: { id: websiteId },
+      data: updateData,
     });
+
     res.json(website);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating website:', error);
+
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Website not found' });
+    }
+
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: 'A website with this name already exists' });
+    }
+
     res.status(500).json({ error: 'Failed to update website' });
   }
 });

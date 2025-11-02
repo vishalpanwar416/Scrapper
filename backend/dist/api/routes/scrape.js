@@ -40,7 +40,16 @@ router.get('/logs', asyncHandler(async (req, res) => {
     const logs = await prisma.scrapeLog.findMany({
         skip,
         take: limit,
-        include: { website: true },
+        include: {
+            website: {
+                select: {
+                    id: true,
+                    name: true,
+                    url: true,
+                    enabled: true
+                }
+            }
+        },
         orderBy: { scrapedAt: 'desc' }
     });
     const total = await prisma.scrapeLog.count();

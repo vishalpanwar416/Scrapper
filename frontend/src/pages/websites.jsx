@@ -14,7 +14,7 @@ export default function Websites() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingWebsite, setEditingWebsite] = useState(null);
   const [formData, setFormData] = useState({ name: '', url: '' });
-  const [scraping, setScraing] = useState({});
+  const [scraping, setScraping] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -327,7 +327,7 @@ export default function Websites() {
     console.log('Website:', name);
 
     try {
-      setScraing((prev) => ({ ...prev, [name]: true }));
+      setScraping((prev) => ({ ...prev, [name]: true }));
       const toastId = toast.loading(`Scraping ${name}...`);
 
       console.log('Sending scrape start request...');
@@ -367,7 +367,7 @@ export default function Websites() {
         toast.error('Failed to start scraping: ' + error.message);
       }
     } finally {
-      setScraing((prev) => ({ ...prev, [name]: false }));
+      setScraping((prev) => ({ ...prev, [name]: false }));
       console.log('═══════════════════════════════════════════════════════\n');
     }
   };
