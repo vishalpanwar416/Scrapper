@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: scrapper-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: scrapper-db
+          property: connectionString
+      - key: DB_PROVIDER
+        value: postgresql
+      - key: PORT
+        value: 10000
+
+databases:
+  - name: scrapper-db
+    databaseName: scrapper
+    user: scrapper_user
+    plan: free

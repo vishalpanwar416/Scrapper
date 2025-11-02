@@ -1,10 +1,14 @@
 // Prisma schema for Scrapper
+// Supports both SQLite (development) and PostgreSQL (production)
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  // Database provider is set via DB_PROVIDER environment variable
+  // For local development: sqlite
+  // For Render/production: postgresql
+  provider = env("DB_PROVIDER")
   url      = env("DATABASE_URL")
 }
 
