@@ -28,8 +28,16 @@ export const Sidebar = () => {
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
-      {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-gray-900 to-gray-800 text-white p-6 transform transition-transform duration-300 z-40 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      {/* Sidebar - Fixed on mobile, relative on desktop */}
+      <aside className={`w-64 h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white p-6 flex flex-col shrink-0 ${
+        // Desktop: static/relative positioning
+        'hidden md:flex'
+      } ${
+        // Mobile: fixed positioning with toggle
+        'fixed md:relative left-0 top-0 transform transition-transform duration-300 z-40 md:z-auto md:translate-x-0'
+      } ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
         {/* Logo */}
         <div className="mb-8">
           <Link href="/" className="flex items-center gap-3 group cursor-pointer">

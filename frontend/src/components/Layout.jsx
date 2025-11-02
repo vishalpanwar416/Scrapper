@@ -8,7 +8,7 @@ export const Layout = ({ children }) => {
       <Sidebar />
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-0 overflow-auto">
+      <main className="flex-1 overflow-auto">
         {children}
       </main>
 

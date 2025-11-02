@@ -42,18 +42,75 @@ export default function Products() {
   const loadProducts = async () => {
     try {
       setLoading(true);
+
+      console.log('\n═══════════════════════════════════════════════════════');
+      console.log('🔄 LOADING PRODUCTS');
+      console.log('═══════════════════════════════════════════════════════');
+      console.log('Query:', query);
+      console.log('Filters:', {
+        page,
+        limit,
+        websiteId: websiteId || 'all',
+        search: search || 'none',
+        priceRange: minPrice || maxPrice ? `$${minPrice}-$${maxPrice}` : 'all',
+        color: color || 'all',
+        size: size || 'all',
+      });
+
       const [productsResponse, sites] = await Promise.all([
         apiGet(query),
         apiGet('/api/websites'),
       ]);
 
-      setItems(productsResponse.data || []);
-      setPagination(productsResponse.pagination || { page: 1, pages: 1, total: 0, limit });
+      const productsData = productsResponse.data || [];
+      const paginationData = productsResponse.pagination || { page: 1, pages: 1, total: 0, limit };
+
+      console.log('\n✅ SUCCESS: Data loaded');
+      console.log('Products:', {
+        itemsReturned: productsData.length,
+        totalCount: paginationData.total,
+        currentPage: paginationData.page,
+        totalPages: paginationData.pages,
+        pageSize: paginationData.limit,
+      });
+      console.log('Websites:', {
+        count: sites.length,
+        enabled: sites.filter(w => w.enabled).length,
+      });
+
+      setItems(productsData);
+      setPagination(paginationData);
       setWebsites(sites);
     } catch (error) {
-      console.error('Failed to load products:', error);
+      console.error('\n❌ LOAD PRODUCTS FAILED');
+      console.error('Query:', query);
+      console.error('Error Message:', error.message);
+      console.error('Error Stack:', error.stack);
+
+      if (error.message.includes('Network Error') || error.message.includes('fetch')) {
+        console.error('DIAGNOSIS: Network connectivity issue');
+        console.error('Possible causes:');
+        console.error('- Backend server is not running');
+        console.error('- Server is not accessible');
+        console.error('- Network connection issue');
+      } else if (error.message.includes('400')) {
+        console.error('DIAGNOSIS: Invalid query parameters');
+        console.error('One or more filter parameters are invalid');
+      } else if (error.message.includes('404')) {
+        console.error('DIAGNOSIS: Endpoint not found');
+      } else if (error.message.includes('500')) {
+        console.error('DIAGNOSIS: Server error');
+        console.error('The backend encountered an internal error while processing the request');
+      } else {
+        console.error('DIAGNOSIS: Unknown error');
+      }
+
+      setItems([]);
+      setPagination({ page: 1, pages: 1, total: 0, limit });
+      setWebsites([]);
     } finally {
       setLoading(false);
+      console.log('═══════════════════════════════════════════════════════\n');
     }
   };
 

@@ -116,6 +116,7 @@ export const corsProdMiddleware = createCorsMiddleware({
 export const corsApiMiddleware = createCorsMiddleware({
   origin: [
     'http://localhost:3000',
+    'http://localhost:3001',
     'http://localhost:5000',
     'http://localhost:5173',
   ],

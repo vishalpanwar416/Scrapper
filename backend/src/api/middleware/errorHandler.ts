@@ -68,17 +68,74 @@ export const errorHandler = (
     message = err.message;
   }
 
-  // Log error in development
+  // Log error in development with more details
   if (process.env.NODE_ENV === 'development') {
-    console.error('[Error Handler]', {
-      status,
-      code,
-      message,
-      stack: err instanceof Error ? err.stack : undefined,
-      details,
-    });
+    console.error('\n════════════════════════════════════════════════════════');
+    console.error(`❌ ERROR HANDLER [${status}]`);
+    console.error('════════════════════════════════════════════════════════');
+    console.error('Code:', code);
+    console.error('Message:', message);
+    console.error('Status Code:', status);
+
+    if (err instanceof Error && err.stack) {
+      console.error('\nStack Trace:');
+      console.error(err.stack);
+    }
+
+    if (details) {
+      console.error('\nDetails:', details);
+    }
+
+    // Provide diagnosis based on error code
+    console.error('\n📋 ERROR DIAGNOSIS:');
+    switch (code) {
+      case 'VALIDATION_ERROR':
+        console.error('- Invalid request data');
+        console.error('- Check required fields and data types');
+        console.error('- Verify input constraints (length, format, etc.)');
+        break;
+      case 'NOT_FOUND':
+        console.error('- Resource does not exist');
+        console.error('- Check if the ID is correct');
+        console.error('- Verify the resource was not deleted');
+        break;
+      case 'DUPLICATE_ERROR':
+        console.error('- A resource with this identifier already exists');
+        console.error('- Try using a different identifier');
+        break;
+      case 'UNAUTHORIZED':
+        console.error('- Authentication failed');
+        console.error('- Check credentials');
+        console.error('- Ensure valid authentication token is provided');
+        break;
+      case 'FORBIDDEN':
+        console.error('- Access denied');
+        console.error('- User does not have required permissions');
+        break;
+      case 'RATE_LIMIT_EXCEEDED':
+        console.error('- Too many requests');
+        console.error('- Wait before making another request');
+        console.error('- Check rate limit configuration');
+        break;
+      case 'DATABASE_ERROR':
+        console.error('- Database operation failed');
+        console.error('- Check database connectivity');
+        console.error('- Verify database schema');
+        break;
+      case 'SERVICE_UNAVAILABLE':
+        console.error('- A required service is not available');
+        console.error('- Check service status');
+        console.error('- Verify service configuration');
+        break;
+      case 'INTERNAL_ERROR':
+      default:
+        console.error('- Unexpected error occurred');
+        console.error('- Check application logs for details');
+        break;
+    }
+    console.error('════════════════════════════════════════════════════════\n');
   } else {
-    console.error(`[${new Date().toISOString()}] Error:`, message);
+    console.error(`[${new Date().toISOString()}] [${code}] ${status} - ${message}`);
   }
 
   // Send error response

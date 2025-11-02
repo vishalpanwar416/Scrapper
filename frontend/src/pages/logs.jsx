@@ -20,14 +20,71 @@ export default function Logs() {
   const loadLogs = async () => {
     try {
       setLoading(true);
+
+      console.log('\n═══════════════════════════════════════════════════════');
+      console.log('📋 LOADING SCRAPING LOGS');
+      console.log('═══════════════════════════════════════════════════════');
+
       const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-      const res = await apiGet(`/api/scrape/logs?${params.toString()}`);
-      setLogs(res.data || []);
-      setPagination(res.pagination || { page: 1, pages: 1, total: 0, limit });
+      const query = `/api/scrape/logs?${params.toString()}`;
+
+      console.log('Query:', query);
+      console.log('Pagination:', { page, limit });
+
+      const res = await apiGet(query);
+
+      const logsData = res.data || [];
+      const paginationData = res.pagination || { page: 1, pages: 1, total: 0, limit };
+
+      console.log('\n✅ SUCCESS: Logs loaded');
+      console.log('Logs:', {
+        itemsReturned: logsData.length,
+        totalCount: paginationData.total,
+        currentPage: paginationData.page,
+        totalPages: paginationData.pages,
+        pageSize: paginationData.limit,
+      });
+
+      // Breakdown by status
+      if (logsData.length > 0) {
+        const statusBreakdown = {};
+        logsData.forEach(log => {
+          statusBreakdown[log.status] = (statusBreakdown[log.status] || 0) + 1;
+        });
+        console.log('Status Breakdown:', statusBreakdown);
+      }
+
+      setLogs(logsData);
+      setPagination(paginationData);
     } catch (error) {
-      console.error('Failed to load logs:', error);
+      console.error('\n❌ LOAD LOGS FAILED');
+      console.error('Query:', `/api/scrape/logs?page=${page}&limit=${limit}`);
+      console.error('Error Message:', error.message);
+      console.error('Error Stack:', error.stack);
+
+      if (error.message.includes('Network Error') || error.message.includes('fetch')) {
+        console.error('DIAGNOSIS: Network connectivity issue');
+        console.error('Possible causes:');
+        console.error('- Backend server is not running');
+        console.error('- Server is not accessible');
+        console.error('- Network connection issue');
+      } else if (error.message.includes('400')) {
+        console.error('DIAGNOSIS: Invalid query parameters');
+        console.error('The page or limit parameters may be invalid');
+      } else if (error.message.includes('404')) {
+        console.error('DIAGNOSIS: Endpoint not found');
+      } else if (error.message.includes('500')) {
+        console.error('DIAGNOSIS: Server error');
+        console.error('The backend encountered an internal error');
+      } else {
+        console.error('DIAGNOSIS: Unknown error');
+      }
+
+      setLogs([]);
+      setPagination({ page: 1, pages: 1, total: 0, limit });
     } finally {
       setLoading(false);
+      console.log('═══════════════════════════════════════════════════════\n');
     }
   };
 

@@ -26,11 +26,17 @@ export default function Dashboard() {
         setStats({
           totalWebsites: websites.length,
           activeWebsites: websites.filter((w) => w.enabled).length,
-          totalProducts: products.total || 0,
-          totalLogs: logs.total || 0,
+          totalProducts: products.pagination?.total || 0,
+          totalLogs: logs.pagination?.total || 0,
         });
       } catch (error) {
         console.error('Failed to fetch stats:', error);
+        setStats({
+          totalWebsites: 0,
+          totalProducts: 0,
+          totalLogs: 0,
+          activeWebsites: 0,
+        });
       } finally {
         setLoading(false);
       }
