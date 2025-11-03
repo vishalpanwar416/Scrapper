@@ -5,10 +5,7 @@ generator client {
 }
 
 datasource db {
-  // Database provider is set via DB_PROVIDER environment variable
-  // For local development: sqlite
-  // For Render/production: postgresql
-  provider = env("DB_PROVIDER")
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
