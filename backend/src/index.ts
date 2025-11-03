@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import websitesRouter from './api/routes/websites.js';
 import productsRouter from './api/routes/products.js';
 import scrapeRouter from './api/routes/scrape.js';
+import scrapersRouter from './api/routes/scrapers.js';
 import {
   corsApiMiddleware,
   logger,
@@ -59,6 +60,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.use('/api/websites', websitesRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/scrape', scrapeRouter);
+app.use('/api/scrapers', scrapersRouter);
 
 // ============================================================================
 // ERROR HANDLING (Order matters! Should be last)

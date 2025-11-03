@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Menu, X, Globe, Package, History, Home, Moon, Sun } from 'lucide-react';
+import { Menu, X, Globe, Package, History, Home, Moon, Sun, Code2 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 
 export const Sidebar = () => {
@@ -13,6 +13,7 @@ export const Sidebar = () => {
     { href: '/', label: 'Dashboard', icon: Home },
     { href: '/websites', label: 'Websites', icon: Globe },
     { href: '/products', label: 'Products', icon: Package },
+    { href: '/scraper-editor', label: 'Scraper Editor', icon: Code2 },
     { href: '/logs', label: 'Logs', icon: History },
   ];
 
