@@ -30,3 +30,8 @@ pnpm-debug.log*
 # Local DBs
 **/prisma/*.db
 **/prisma/*.db-journal
+
+# Generated scrapers (auto-created per website)
+backend/src/scrapers/*.ts
+!backend/src/scrapers/utils.ts
+!backend/src/scrapers/index.ts
