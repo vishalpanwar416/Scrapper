@@ -172,6 +172,130 @@ class ScraperFileManager {
   }
 
   /**
+   * Delete scraper file for a website
+   *
+   * @param websiteName - The name of the website whose scraper file should be deleted
+   * @returns Promise with success status, file path (if deleted), and any error message
+   *
+   * @example
+   * ```typescript
+   * const result = await scraperFileManager.deleteScraperFile('amazon');
+   * if (result.success) {
+   *   console.log(`Deleted scraper: ${result.filePath}`);
+   * }
+   * ```
+   *
+   * @remarks
+   * - This method is non-blocking and will not throw errors
+   * - It handles edge cases like missing files, permission issues, and invalid names
+   * - Default scrapers cannot be deleted
+   * - The deletion is logged for audit purposes
+   */
+  async deleteScraperFile(
+    websiteName: string
+  ): Promise<{ success: boolean; filePath?: string; error?: string; isDefaultScraper?: boolean }> {
+    try {
+      // Validate input
+      if (!websiteName || typeof websiteName !== 'string') {
+        return {
+          success: false,
+          error: 'Invalid website name: must be a non-empty string',
+        };
+      }
+
+      // Sanitize the name to match file naming conventions
+      // This ensures we're looking for the correct file
+      const sanitized = String(websiteName)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .trim();
+
+      // Check if the name is empty after sanitization
+      if (!sanitized) {
+        return {
+          success: false,
+          error: 'Invalid website name: no valid characters after sanitization',
+        };
+      }
+
+      // Prevent deletion of default scrapers (these are built-in)
+      if (this.defaultScrapers.includes(sanitized)) {
+        console.log(`[ScraperFileManager] ⚠️  Cannot delete default scraper: ${sanitized}`);
+        return {
+          success: false,
+          error: `Cannot delete default scraper: ${sanitized}`,
+          isDefaultScraper: true,
+        };
+      }
+
+      // Construct the file path
+      const filePath = path.join(this.scrapersDir, `${sanitized}.ts`);
+
+      // Check if file exists before attempting deletion
+      try {
+        await fs.access(filePath);
+      } catch (error) {
+        // File doesn't exist - this is not an error, just log it
+        console.log(`[ScraperFileManager] ℹ️  Scraper file not found (already deleted or never created): ${sanitized}.ts`);
+        return {
+          success: true,
+          filePath,
+          error: undefined,
+        };
+      }
+
+      // Delete the file
+      await fs.unlink(filePath);
+
+      console.log(`[ScraperFileManager] ✅ Deleted scraper file: ${sanitized}.ts`);
+      console.log(`[ScraperFileManager] 📂 Path: ${filePath}`);
+
+      return {
+        success: true,
+        filePath,
+      };
+    } catch (error: any) {
+      // Handle specific errors
+      const errorMessage = error.message || 'Unknown error';
+      const errorCode = error.code;
+
+      // Log the error for debugging
+      console.error(`[ScraperFileManager] ❌ Error deleting scraper file:`, {
+        websiteName,
+        error: errorMessage,
+        code: errorCode,
+      });
+
+      // Handle specific error codes
+      if (errorCode === 'ENOENT') {
+        // File not found - treat as success since the goal is to not have the file
+        return {
+          success: true,
+          error: 'File not found (already deleted)',
+        };
+      } else if (errorCode === 'EACCES' || errorCode === 'EPERM') {
+        // Permission denied
+        return {
+          success: false,
+          error: `Permission denied: cannot delete scraper file. Check file permissions.`,
+        };
+      } else if (errorCode === 'EBUSY') {
+        // File is busy/in use
+        return {
+          success: false,
+          error: `File is currently in use and cannot be deleted. Try again later.`,
+        };
+      }
+
+      // Generic error
+      return {
+        success: false,
+        error: `Failed to delete scraper file: ${errorMessage}`,
+      };
+    }
+  }
+
+  /**
    * Get scraper template
    */
   getScraperTemplate(websiteName: string, websiteUrl: string): string {

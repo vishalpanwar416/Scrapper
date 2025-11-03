@@ -2,6 +2,7 @@ import { Router } from 'express';
 import prisma from '../../database/prisma.js';
 import { AutoScraper } from '../../utils/autoScraper.js';
 import { scraperGenerator } from '../../utils/scraperGenerator.js';
+import { scraperFileManager } from '../../utils/scraperFileManager.js';
 
 const router = Router();
 
@@ -193,6 +194,28 @@ router.delete('/:id', async (req, res) => {
     console.log(`\n📋 Items to be preserved (audit trail):`);
     console.log(`   - Scrape Logs: ${logCount}`);
 
+    // Delete the associated scraper file (if it exists)
+    // This is non-blocking - deletion continues even if file deletion fails
+    console.log(`\n🗑️  Attempting to delete scraper file for: ${website.name}`);
+    const scraperDeletionResult = await scraperFileManager.deleteScraperFile(website.name);
+
+    if (scraperDeletionResult.success) {
+      if (scraperDeletionResult.isDefaultScraper) {
+        console.log(`   ⚠️  Default scraper preserved: ${website.name}`);
+      } else if (scraperDeletionResult.error) {
+        console.log(`   ℹ️  Scraper file: ${scraperDeletionResult.error}`);
+      } else {
+        console.log(`   ✅ Scraper file deleted successfully`);
+        if (scraperDeletionResult.filePath) {
+          console.log(`   📂 Deleted: ${scraperDeletionResult.filePath}`);
+        }
+      }
+    } else {
+      // Log the error but continue with website deletion
+      console.log(`   ⚠️  Failed to delete scraper file: ${scraperDeletionResult.error}`);
+      console.log(`   ℹ️  Continuing with website deletion...`);
+    }
+
     // Use a transaction to ensure atomic deletion (all or nothing)
     const result = await prisma.$transaction(async (tx) => {
       // Step 1: Delete colors and sizes (products' relations)
@@ -229,6 +252,7 @@ router.delete('/:id', async (req, res) => {
           productsDeleted: productCount,
           logsPreserved: logCount,
         },
+        scraperFileDeleted: scraperDeletionResult.success && !scraperDeletionResult.isDefaultScraper,
       };
     });
 
@@ -241,6 +265,7 @@ router.delete('/:id', async (req, res) => {
       deleted: {
         website: result.website.name,
         statistics: result.statistics,
+        scraperFileDeleted: result.scraperFileDeleted,
       },
     });
   } catch (error: any) {
